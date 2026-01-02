@@ -380,7 +380,9 @@ void WIFIMANAGER::loop() {
     // Check if we are connected to a well known SSID
     for(uint8_t i=0; i<WIFIMANAGER_MAX_APS; i++) {
       if (WiFi.SSID() == apList[i].apName) {
-        logMessage(String("[WIFI][STATUS] Connected to known SSID: '") + WiFi.SSID() + "' with IP " + WiFi.localIP().toString() + "\n");
+        logMessage(String("[WIFI][STATUS] Connected to known SSID: '") + WiFi.SSID() +
+                   "' with IP " + WiFi.localIP().toString() +
+                   " (MAC " + WiFi.macAddress() + ")\n");
         return;
       }
     }

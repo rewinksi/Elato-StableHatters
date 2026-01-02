@@ -39,7 +39,6 @@ extern volatile bool i2sOutputFlushScheduled;
 
 // AUDIO INPUT
 extern I2SStream i2sInput;
-extern StreamCopy micToWsCopier;
 extern volatile bool i2sInputFlushScheduled;
 
 // WEBSOCKET

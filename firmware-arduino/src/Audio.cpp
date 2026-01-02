@@ -1,6 +1,7 @@
 #include "OTA.h"
 #include "Audio.h"
 #include "PitchShift.h"
+#include <math.h>
 
 // WEBSOCKET
 SemaphoreHandle_t wsMutex;
@@ -202,9 +203,8 @@ public:
 
 WebsocketStream wsStream; //guard with wsMutex
 I2SStream i2sInput; //access from micTask only
-StreamCopy micToWsCopier(wsStream, i2sInput);
 volatile bool i2sInputFlushScheduled = false;
-const int MIC_COPY_SIZE = 64;
+const int MIC_COPY_SIZE = 256;
 
 void micTask(void *parameter) {
     // Configure and start I2S input stream.
@@ -212,16 +212,18 @@ void micTask(void *parameter) {
     i2sConfig.bits_per_sample = BITS_PER_SAMPLE;
     i2sConfig.sample_rate = MIC_SAMPLE_RATE;
     i2sConfig.channels = CHANNELS;
-    i2sConfig.i2s_format = I2S_LEFT_JUSTIFIED_FORMAT;
+    i2sConfig.signal_type = MIC_INPUT_IS_PDM ? PDM : Digital;
+    i2sConfig.i2s_format = MIC_INPUT_IS_PDM ? I2S_STD_FORMAT : I2S_LEFT_JUSTIFIED_FORMAT;
     i2sConfig.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT;
     // Configure your I2S input pins appropriately here:
-    i2sConfig.pin_bck = I2S_SCK;
-    i2sConfig.pin_ws  = I2S_WS;
+    // For XIAO ESP32S3 Sense (PDM), Seeed's reference uses GPIO42 as WS (clock) and GPIO41 as data.
+    i2sConfig.pin_bck = MIC_INPUT_IS_PDM ? -1 : I2S_SCK;
+    i2sConfig.pin_ws  = MIC_INPUT_IS_PDM ? I2S_SCK : I2S_WS;
     i2sConfig.pin_data = I2S_SD;
     i2sConfig.port_no = I2S_PORT_IN;
     i2sInput.begin(i2sConfig);
 
-    micToWsCopier.setDelayOnNoData(0);
+    int16_t sampleBuffer[MIC_COPY_SIZE / sizeof(int16_t)];
 
     while (1) {
         if (i2sInputFlushScheduled) {
@@ -230,8 +232,17 @@ void micTask(void *parameter) {
         }
 
         if (deviceState == LISTENING && webSocket.isConnected()) {
-            // Use smaller chunk size to avoid blocking too long
-            micToWsCopier.copyBytes(MIC_COPY_SIZE);
+            size_t bytesRead = i2sInput.readBytes(reinterpret_cast<uint8_t*>(sampleBuffer), MIC_COPY_SIZE);
+            if (bytesRead > 0) {
+                const size_t sampleCount = bytesRead / sizeof(int16_t);
+                for (size_t i = 0; i < sampleCount; i++) {
+                    int32_t v = (int32_t)lroundf((float)sampleBuffer[i] * MIC_GAIN);
+                    if (v > 32767) v = 32767;
+                    if (v < -32768) v = -32768;
+                    sampleBuffer[i] = (int16_t)v;
+                }
+                wsStream.write(reinterpret_cast<const uint8_t*>(sampleBuffer), bytesRead);
+            }
             
             // Yield more frequently
             vTaskDelay(1);

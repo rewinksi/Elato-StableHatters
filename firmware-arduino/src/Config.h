@@ -12,15 +12,15 @@
 // Pick one of the following (DEV_MODE, PROD_MODE, ELATO_MODE) , comment the rest
 // For ELATO_MODE, you will need to register your DIY Hardware on the Elato website
 
-#define DEV_MODE
+//#define DEV_MODE
 // #define PROD_MODE
-// #define ELATO_MODE
+#define ELATO_MODE
 
 
 // ---------- Touch mode ----------
 // If you want to use the touch sensor to wake up the device, uncomment the following line
 // If you want to use the button to wake up the device, comment the following line
-#define TOUCH_MODE
+//#define TOUCH_MODE
 
 extern Preferences preferences;
 extern bool factory_reset_status;
@@ -72,6 +72,7 @@ extern const uint16_t backend_port;
 // I2S and Audio parameters
 extern const uint32_t SAMPLE_RATE;
 extern const uint32_t MIC_SAMPLE_RATE;
+extern const float MIC_GAIN;
 
 extern const int BLUE_LED_PIN;
 extern const int RED_LED_PIN;
@@ -80,6 +81,7 @@ extern const int GREEN_LED_PIN;
 extern const gpio_num_t BUTTON_PIN;
 
 // I2S Microphone pins
+extern const bool MIC_INPUT_IS_PDM;
 extern const int I2S_SD;
 extern const int I2S_WS;
 extern const int I2S_SCK;

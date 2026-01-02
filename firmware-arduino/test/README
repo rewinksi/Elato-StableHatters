@@ -9,3 +9,21 @@ in the development cycle.
 
 More information about PlatformIO Unit Testing:
 - https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+
+Standalone test sketches in subfolders can be built/uploaded directly:
+
+- XIAO PDM mic test:
+  pio run -d test/XIAO_PDM_MICTEST -t upload
+  pio device monitor -p <port> -b 115200
+
+- Speaker radio test:
+  pio run -d test/speaker_radio_test -t upload
+  pio device monitor -p <port> -b 115200
+
+- Touch threshold test:
+  pio run -d test/touch_test -t upload
+  pio device monitor -p <port> -b 115200
+
+- Touch LED test:
+  pio run -d test/touch_led_test -t upload
+  pio device monitor -p <port> -b 115200

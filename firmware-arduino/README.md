@@ -7,8 +7,7 @@ This firmware turns your ESP32 device into a WebSocket audio client for Elato, e
 <img src="../assets/pcb-design.png" alt="Hardware Setup" width="100%">
 
 ### Components Needed
-- ESP32-S3 board
-- I2S MEMS microphone (INMP441 recommended)
+- XIAO ESP32S3 Sense (onboard PDM microphone)
 - I2S speaker with amplifier (MAX98357A recommended)
 - Microspeaker
 - Button/Touch sensor and RGB LED (optional but recommended)
@@ -17,10 +16,9 @@ This firmware turns your ESP32 device into a WebSocket audio client for Elato, e
 
 | **Component** | **Standard ESP32** |
 |---------------|-------------------|
-| **Microphone** |                   |
-| SD (Data)     | GPIO 14           |
-| WS (Word Select)        | GPIO 4            |
-| SCK (Clock)            | GPIO 1            |
+| **Microphone (onboard PDM)** |                   |
+| DATA                 | GPIO 41          |
+| CLK                  | GPIO 42          |
 | **Speaker**   |                  |                   |
 | WS                    | GPIO 5            |
 | BCK             | GPIO 6            |
@@ -31,6 +29,8 @@ This firmware turns your ESP32 device into a WebSocket audio client for Elato, e
 | LED (Blue)              | GPIO 13           |
 | LED (Red)           | GPIO 9            |
 | LED (Green)           | GPIO 8            |
+
+Note: If you are using an external I2S microphone instead of the XIAO ESP32S3 Sense onboard mic, update the mic pins and `MIC_INPUT_IS_PDM` in `src/Config.cpp`.
 
 ## Software Setup
 

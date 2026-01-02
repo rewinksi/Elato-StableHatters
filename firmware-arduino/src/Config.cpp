@@ -65,25 +65,44 @@ volatile DeviceState deviceState = IDLE;
 // I2S and Audio parameters
 const uint32_t SAMPLE_RATE = 24000;
 const uint32_t MIC_SAMPLE_RATE = 16000;
+// Digital gain applied to microphone samples before sending to the backend.
+const float MIC_GAIN = 5.0f;
 
 // ----------------- Pin Definitions -----------------
+#if defined(ARDUINO_XIAO_ESP32S3)
+// PDM RX is only supported on I2S0, so swap ports on XIAO ESP32S3 Sense.
+const i2s_port_t I2S_PORT_IN = I2S_NUM_0;
+const i2s_port_t I2S_PORT_OUT = I2S_NUM_1;
+#else
 const i2s_port_t I2S_PORT_IN = I2S_NUM_1;
 const i2s_port_t I2S_PORT_OUT = I2S_NUM_0;
+#endif
 
-const int BLUE_LED_PIN = 13;
-const int RED_LED_PIN = 9;
-const int GREEN_LED_PIN = 8;
+const int RED_LED_PIN = GPIO_NUM_1;
+const int GREEN_LED_PIN = GPIO_NUM_2;
+const int BLUE_LED_PIN = GPIO_NUM_5;
 
+
+#if defined(ARDUINO_XIAO_ESP32S3)
+// XIAO ESP32S3 Sense onboard PDM mic pins.
+const bool MIC_INPUT_IS_PDM = true;
+const int I2S_SD = 41;  // PDM data
+const int I2S_WS = -1;  // Not used for PDM
+const int I2S_SCK = 42; // PDM clock
+#else
+// External I2S mic (INMP441) default pins.
+const bool MIC_INPUT_IS_PDM = false;
 const int I2S_SD = 14;
 const int I2S_WS = 4;
 const int I2S_SCK = 1;
+#endif
+// ✅ = confirmed pins for Xiao ESP32S3
+const int I2S_WS_OUT = GPIO_NUM_44; //also called LRC ✅
+const int I2S_BCK_OUT = GPIO_NUM_7; //✅
+const int I2S_DATA_OUT = GPIO_NUM_8; // ✅
+const int I2S_SD_OUT = GPIO_NUM_9; //✅
 
-const int I2S_WS_OUT = 5;
-const int I2S_BCK_OUT = 6;
-const int I2S_DATA_OUT = 7;
-const int I2S_SD_OUT = 10;
-
-const gpio_num_t BUTTON_PIN = GPIO_NUM_2; // Only RTC IO are allowed - ESP32 Pin example
+const gpio_num_t BUTTON_PIN = GPIO_NUM_6; // Only RTC IO are allowed - ESP32 Pin example
 
 
 // ----------------- SSL Certificates -----------------

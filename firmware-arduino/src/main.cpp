@@ -2,6 +2,7 @@
 #include "LEDHandler.h"
 #include "OTA.h"
 #include "WifiManager.h"
+#include "Button.h"
 #include <driver/touch_sensor.h>
 
 #define TOUCH_THRESHOLD 28000
