@@ -1,19 +1,7 @@
-<a href="https://www.kickstarter.com/projects/elatoai/elato-make-toys-talk-with-ai-voices" target="_blank">
- <img src="assets/ks.png" alt="Elato Logo" width="100%">
-</a>
+# STABLE HATTERS - AI COMPANION PROJECT (ft Elato Realtime AI fork)
 
-<br />
-
-<div align="center">
-<h3>
-
-[🚀 Kickstarter (launching soon!)](https://www.kickstarter.com/projects/elatoai/elato-make-toys-talk-with-ai-voices) | [🏠 Homepage](https://elatoai.com/) 
-
-</h3>
-</div>
-
-<br />
-
+PROGRESS UPDATE - WATCH THIS SPACE.
+Elato Fork details below:
 
 # 👾 ElatoAI: Realtime Speech AI Agents for ESP32
 
