@@ -105,3 +105,7 @@ git fetch upstream
 git reset --hard upstream/main
 git checkout -b feature/<short-name>
 ```
+
+## Work Habits
+- After every "chunk" of work (every bug fix or feature addition) run `git status`, stage the changes, and create an atomic commit so history reflects each discrete step.
+- At the start of each new daily session prompt for a fresh `git pull`/`git status` check before diving into changes to ensure we build on the latest state.
