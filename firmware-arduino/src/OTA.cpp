@@ -1,26 +1,45 @@
 #include "OTA.h"
 #include "HttpsOTAUpdate.h"
 #include "esp_ota_ops.h"
+#include <cstring>
 
 HttpsOTAStatus_t otastatus;
 
-// OTA firmware url
-#ifdef TOUCH_MODE
-const char *ota_firmware_url = "<YOUR S3 OTA FIRMWARE URL HERE> - TOUCH MODE";
-#else
-const char *ota_firmware_url = "<YOUR S3 OTA FIRMWARE URL HERE> - BUTTON MODE";
+namespace {
+bool isUnset(const char *value) {
+    return value == nullptr || value[0] == '\0';
+}
+
+bool isHttpUrl(const char *url) {
+    if (url == nullptr) return false;
+    return strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0;
+}
+
+bool isHttpsUrl(const char *url) {
+    return url != nullptr && strncmp(url, "https://", 8) == 0;
+}
+}  // namespace
+
+#ifndef ELATO_OTA_FIRMWARE_URL
+#define ELATO_OTA_FIRMWARE_URL ""
 #endif
 
-const char *server_certificate = R"EOF(
------BEGIN CERTIFICATE-----
+// Option 1 OTA path: native pull OTA via HttpsOTA.
+// Configure URL at build time with:
+//   -D ELATO_OTA_FIRMWARE_URL=\"https://host/path/firmware.bin\"
+const char *ota_firmware_url = ELATO_OTA_FIRMWARE_URL;
 
-    <YOUR S3 HOST CERTIFICATE HERE>
+#ifdef ELATO_OTA_SERVER_CERT_PEM
+// Optional PEM override for non-standard cert chains.
+const char *server_certificate = ELATO_OTA_SERVER_CERT_PEM;
+#else
+// Default to existing backend CA root in Config.cpp.
+const char *server_certificate = Vercel_CA_cert;
+#endif
 
------END CERTIFICATE-----
-)EOF";
-
-void markOTAUpdateComplete() {
+bool markOTAUpdateComplete() {
     HTTPClient http;
+    bool acked = false;
     // Construct the JSON payload
     JsonDocument doc;
     doc["authToken"] = authTokenGlobal;
@@ -47,7 +66,7 @@ void markOTAUpdateComplete() {
     if (httpCode > 0) {
         if (httpCode == HTTP_CODE_OK) {
             Serial.println("OTA status updated successfully");
-            setOTAStatusInNVS(OTA_IDLE);
+            acked = true;
         } else {
             Serial.printf("OTA status update failed with code: %d\n", httpCode);
         }
@@ -56,6 +75,19 @@ void markOTAUpdateComplete() {
     }
     
     http.end();
+    // Never keep OTA_COMPLETE latched on backend callback failures.
+    setOTAStatusInNVS(OTA_IDLE);
+    return acked;
+}
+
+bool canStartOTAFromConfig() {
+    if (!isHttpUrl(ota_firmware_url) || isUnset(ota_firmware_url)) {
+        return false;
+    }
+    if (isHttpsUrl(ota_firmware_url) && isUnset(server_certificate)) {
+        return false;
+    }
+    return true;
 }
 
 void getOTAStatusFromNVS()
@@ -85,7 +117,8 @@ void loopOTA()
     else if (otastatus == HTTPS_OTA_FAIL)
     {
         Serial.println("Firmware Upgrade Fail");
-        setOTAStatusInNVS(OTA_IN_PROGRESS);
+        // Clear OTA state before reset to avoid an OTA reboot loop.
+        setOTAStatusInNVS(OTA_IDLE);
         ESP.restart();
     }
 }
@@ -117,10 +150,21 @@ void HttpEvent(HttpEvent_t *event)
     }
 }
 
-void performOTAUpdate()
+bool performOTAUpdate()
 {
+    if (!isHttpUrl(ota_firmware_url) || isUnset(ota_firmware_url)) {
+        Serial.println("OTA skipped: ota_firmware_url is not configured.");
+        setOTAStatusInNVS(OTA_IDLE);
+        return false;
+    }
+    if (isHttpsUrl(ota_firmware_url) && isUnset(server_certificate)) {
+        Serial.println("OTA skipped: server_certificate is not configured for HTTPS OTA.");
+        setOTAStatusInNVS(OTA_IDLE);
+        return false;
+    }
+
     Serial.println("Starting OTA Update...");
     HttpsOTA.onHttpEvent(HttpEvent);
     HttpsOTA.begin(ota_firmware_url, server_certificate);
+    return true;
 }
-

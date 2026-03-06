@@ -22,6 +22,11 @@
 // If you want to use the button to wake up the device, comment the following line
 //#define TOUCH_MODE
 
+// ---------- Board profile ----------
+// Board profiles are selected from platformio.ini via:
+//   -D ELATO_BOARD_XIAO_ESP32S3_SENSE=1
+//   -D ELATO_BOARD_RESPEAKER_LITE=1
+
 extern Preferences preferences;
 extern bool factory_reset_status;
 

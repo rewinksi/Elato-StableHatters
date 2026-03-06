@@ -1,12 +1,44 @@
 #include "LEDHandler.h"
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+#include <Adafruit_NeoPixel.h>
+#endif
 
 int brightness = 0;
 int fadeAmount = 5;
 static unsigned long lastToggle = 0;
 static bool ledState = false;
 
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+static Adafruit_NeoPixel statusPixel(1, A0, NEO_GRB + NEO_KHZ800);
+
+static inline void showStatusColor(uint8_t r, uint8_t g, uint8_t b)
+{
+    statusPixel.setPixelColor(0, statusPixel.Color(r, g, b));
+    statusPixel.show();
+}
+#endif
+
+static inline bool hasDirectRgbPins()
+{
+    return RED_LED_PIN >= 0 && GREEN_LED_PIN >= 0 && BLUE_LED_PIN >= 0;
+}
+
+static inline bool hasStatusLedBackend()
+{
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+    return true;
+#else
+    return hasDirectRgbPins();
+#endif
+}
+
 void setLEDColor(uint8_t r, uint8_t g, uint8_t b)
 {
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+    showStatusColor(r, g, b);
+    return;
+#endif
+    if (!hasDirectRgbPins()) return;
     analogWrite(RED_LED_PIN, r);
     analogWrite(GREEN_LED_PIN, g);
     analogWrite(BLUE_LED_PIN, b);
@@ -30,6 +62,20 @@ struct RGB {
 
 void setStaticColor(StaticColor color)
 {
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+    switch (color)
+    {
+    case StaticColor::RED:     setLEDColor(255, 0, 0);   break;
+    case StaticColor::GREEN:   setLEDColor(0, 255, 0);   break;
+    case StaticColor::BLUE:    setLEDColor(0, 0, 255);   break;
+    case StaticColor::YELLOW:  setLEDColor(255, 255, 0); break;
+    case StaticColor::MAGENTA: setLEDColor(255, 0, 255); break;
+    case StaticColor::CYAN:    setLEDColor(0, 255, 255); break;
+    default:                   setLEDColor(0, 0, 0);     break;
+    }
+    return;
+#endif
+    if (!hasDirectRgbPins()) return;
     RGB colorMap;
 
     switch (color)
@@ -149,13 +195,16 @@ void blinkYellow()
 
 void turnOffLED()
 {
-    digitalWrite(RED_LED_PIN, LOW);
-    digitalWrite(GREEN_LED_PIN, LOW);
-    digitalWrite(BLUE_LED_PIN, LOW);
+    setLEDColor(0, 0, 0);
 }
 
 void turnOnLED()
 {
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+    setLEDColor(255, 255, 255);
+    return;
+#endif
+    if (!hasDirectRgbPins()) return;
     digitalWrite(RED_LED_PIN, HIGH);
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(BLUE_LED_PIN, HIGH);
@@ -163,6 +212,13 @@ void turnOnLED()
 
 void setupRGBLED()
 {
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+    statusPixel.begin();
+    statusPixel.setBrightness(32);
+    turnOffLED();
+    return;
+#endif
+    if (!hasDirectRgbPins()) return;
     pinMode(RED_LED_PIN, OUTPUT);
     pinMode(GREEN_LED_PIN, OUTPUT);
     pinMode(BLUE_LED_PIN, OUTPUT);
@@ -273,6 +329,11 @@ void ledTask(void *parameter)
     unsigned long currentTime = 0;
     while (1)
     {
+        if (!hasStatusLedBackend())
+        {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            continue;
+        }
         currentTime += 20; // Track time based on vTaskDelay
 
         // Toggle LED state every 200ms for blinking functions

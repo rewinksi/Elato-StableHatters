@@ -4,6 +4,7 @@
 #include "WifiManager.h"
 #include "Button.h"
 #include <driver/touch_sensor.h>
+#include <esp_heap_caps.h>
 
 #define TOUCH_THRESHOLD 28000
 #define REQUIRED_RELEASE_CHECKS                                                \
@@ -13,6 +14,7 @@
 AsyncWebServer webServer(80);
 WIFIMANAGER WifiManager;
 esp_err_t getErr = ESP_OK;
+TaskHandle_t ledTaskHandle = NULL;
 
 // Main Thread -> onButtonLongPressUpEventCb -> enterSleep()
 // Main Thread -> onButtonDoubleClickCb -> enterSleep()
@@ -192,16 +194,20 @@ void setup() {
   wsMutex = xSemaphoreCreateMutex();
 
 // INTERRUPT
-#ifdef TOUCH_MODE
+#if defined(TOUCH_MODE)
   xTaskCreate(touchTask, "Touch Task", 4096, NULL, configMAX_PRIORITIES - 2,
               NULL);
 #else
-  getErr = esp_sleep_enable_ext0_wakeup(BUTTON_PIN, LOW);
-  printOutESP32Error(getErr);
-  Button *btn = new Button(BUTTON_PIN, false);
-  btn->attachLongPressUpEventCb(&onButtonLongPressUpEventCb, NULL);
-  btn->attachDoubleClickEventCb(&onButtonDoubleClickCb, NULL);
-  btn->detachSingleClickEvent();
+  if (BUTTON_PIN != GPIO_NUM_NC) {
+    getErr = esp_sleep_enable_ext0_wakeup(BUTTON_PIN, LOW);
+    printOutESP32Error(getErr);
+    Button *btn = new Button(BUTTON_PIN, false);
+    btn->attachLongPressUpEventCb(&onButtonLongPressUpEventCb, NULL);
+    btn->attachDoubleClickEventCb(&onButtonDoubleClickCb, NULL);
+    btn->detachSingleClickEvent();
+  } else {
+    Serial.println("Button pathway disabled: BUTTON_PIN not assigned.");
+  }
 #endif
 
   // Pin audio tasks to Core 1 (application core)
@@ -210,7 +216,7 @@ void setup() {
                           4096,       // Stack size
                           NULL,       // Parameters
                           5,          // Priority
-                          NULL,       // Handle
+                          &ledTaskHandle, // Handle
                           1           // Core 1 (application core)
   );
 
@@ -219,7 +225,7 @@ void setup() {
                           4096,            // Stack size
                           NULL,            // Parameters
                           3,               // Priority
-                          NULL,            // Handle
+                          &speakerTaskHandle, // Handle
                           1                // Core 1 (application core)
   );
 
@@ -228,7 +234,7 @@ void setup() {
                           4096,              // Stack size
                           NULL,              // Parameters
                           4,                 // Priority
-                          NULL,              // Handle
+                          &micTaskHandle,    // Handle
                           1                  // Core 1 (application core)
   );
 
@@ -246,8 +252,36 @@ void setup() {
   setupWiFi();
 }
 
+void printRuntimeTelemetry() {
+  static unsigned long lastTelemetryMs = 0;
+  const unsigned long now = millis();
+  if (now - lastTelemetryMs < 5000) {
+    return;
+  }
+  lastTelemetryMs = now;
+
+  const uint32_t freeHeap = ESP.getFreeHeap();
+  const uint32_t minFreeHeap = esp_get_minimum_free_heap_size();
+  const uint32_t free8BitHeap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+  const uint32_t min8BitHeap = heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+
+  const UBaseType_t ledStackHw = ledTaskHandle ? uxTaskGetStackHighWaterMark(ledTaskHandle) : 0;
+  const UBaseType_t speakerStackHw = speakerTaskHandle ? uxTaskGetStackHighWaterMark(speakerTaskHandle) : 0;
+  const UBaseType_t micStackHw = micTaskHandle ? uxTaskGetStackHighWaterMark(micTaskHandle) : 0;
+  const UBaseType_t networkStackHw = networkTaskHandle ? uxTaskGetStackHighWaterMark(networkTaskHandle) : 0;
+
+  Serial.printf(
+      "[TELEM] heap_free=%uB heap_min=%uB heap8_free=%uB heap8_min=%uB "
+      "stack_hw(words): led=%u speaker=%u mic=%u net=%u state=%d\n",
+      freeHeap, minFreeHeap, free8BitHeap, min8BitHeap,
+      (unsigned int)ledStackHw, (unsigned int)speakerStackHw,
+      (unsigned int)micStackHw, (unsigned int)networkStackHw,
+      (int)deviceState);
+}
+
 void loop() {
   processSleepRequest();
+  printRuntimeTelemetry();
   if (otaState == OTA_IN_PROGRESS) {
     loopOTA();
   }

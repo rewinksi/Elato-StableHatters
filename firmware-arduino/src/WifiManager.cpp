@@ -68,10 +68,14 @@ void connectCb() {
   Serial.println("On connecting to Wifi");
   if (isDeviceRegistered())  {
     if (otaState == OTA_IN_PROGRESS) {
-        performOTAUpdate();
+        if (!performOTAUpdate()) {
+          websocketSetup(ws_server, ws_port, ws_path);
+        }
     } else if (otaState == OTA_COMPLETE) {
-        markOTAUpdateComplete();
-        ESP.restart();
+        if (!markOTAUpdateComplete()) {
+          Serial.println("OTA completion callback failed; continuing with OTA state cleared.");
+        }
+        websocketSetup(ws_server, ws_port, ws_path);
     } else {
         websocketSetup(ws_server, ws_port, ws_path);
     }

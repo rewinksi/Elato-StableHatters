@@ -63,13 +63,27 @@ String authTokenGlobal;
 volatile DeviceState deviceState = IDLE;
 
 // I2S and Audio parameters
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker official record/play baseline uses 16k sample rate on the host path.
+// Keep this profile locked to 16k for predictable XMOS framing and voice pitch.
+const uint32_t SAMPLE_RATE = 16000;
+#else
 const uint32_t SAMPLE_RATE = 24000;
+#endif
 const uint32_t MIC_SAMPLE_RATE = 16000;
 // Digital gain applied to microphone samples before sending to the backend.
 const float MIC_GAIN = 5.0f;
 
+#if defined(ELATO_BOARD_RESPEAKER_LITE) && defined(ELATO_BOARD_XIAO_ESP32S3_SENSE)
+#error "Board profile conflict: define only one of ELATO_BOARD_RESPEAKER_LITE or ELATO_BOARD_XIAO_ESP32S3_SENSE."
+#endif
+
 // ----------------- Pin Definitions -----------------
-#if defined(ARDUINO_XIAO_ESP32S3)
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker Lite uses shared I2S clocks and separate DIN/DOUT data lines.
+const i2s_port_t I2S_PORT_IN = I2S_NUM_1;
+const i2s_port_t I2S_PORT_OUT = I2S_NUM_0;
+#elif defined(ELATO_BOARD_XIAO_ESP32S3_SENSE)
 // PDM RX is only supported on I2S0, so swap ports on XIAO ESP32S3 Sense.
 const i2s_port_t I2S_PORT_IN = I2S_NUM_0;
 const i2s_port_t I2S_PORT_OUT = I2S_NUM_1;
@@ -78,12 +92,27 @@ const i2s_port_t I2S_PORT_IN = I2S_NUM_1;
 const i2s_port_t I2S_PORT_OUT = I2S_NUM_0;
 #endif
 
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker Lite status LED is WS2812 (single pixel on A0) handled in LEDHandler.
+// Keep legacy 3-pin RGB placeholders disabled for this board profile.
+const int RED_LED_PIN = -1;
+const int GREEN_LED_PIN = -1;
+const int BLUE_LED_PIN = -1;
+#else
 const int RED_LED_PIN = GPIO_NUM_1;
 const int GREEN_LED_PIN = GPIO_NUM_2;
 const int BLUE_LED_PIN = GPIO_NUM_5;
+#endif
 
 
-#if defined(ARDUINO_XIAO_ESP32S3)
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker Lite I2S data from XMOS to ESP32 (DIN) on GPIO44.
+const bool MIC_INPUT_IS_PDM = false;
+const int I2S_SD = 44;
+// Shared I2S clocks from host profile.
+const int I2S_WS = 7;
+const int I2S_SCK = 8;
+#elif defined(ELATO_BOARD_XIAO_ESP32S3_SENSE)
 // XIAO ESP32S3 Sense onboard PDM mic pins.
 const bool MIC_INPUT_IS_PDM = true;
 const int I2S_SD = 41;  // PDM data
@@ -96,13 +125,32 @@ const int I2S_SD = 14;
 const int I2S_WS = 4;
 const int I2S_SCK = 1;
 #endif
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker Lite host I2S pins from Seeed/ReSpeaker examples:
+// BCLK=GPIO8, WS=GPIO7, DOUT=GPIO43, DIN=GPIO44.
+const int I2S_WS_OUT = GPIO_NUM_7;
+const int I2S_BCK_OUT = GPIO_NUM_8;
+const int I2S_DATA_OUT = GPIO_NUM_43;
+// No dedicated external amp shutdown pin in this profile.
+const int I2S_SD_OUT = -1;
+#else
 // ✅ = confirmed pins for Xiao ESP32S3
 const int I2S_WS_OUT = GPIO_NUM_44; //also called LRC ✅
 const int I2S_BCK_OUT = GPIO_NUM_7; //✅
 const int I2S_DATA_OUT = GPIO_NUM_8; // ✅
 const int I2S_SD_OUT = GPIO_NUM_9; //✅
+#endif
 
+#if defined(ELATO_BOARD_RESPEAKER_LITE)
+// ReSpeaker `USR` button jumper is set to D2 in this branch/workflow.
+// D2 on XIAO ESP32S3 maps to GPIO3.
+const gpio_num_t BUTTON_PIN = GPIO_NUM_3;
+#else
 const gpio_num_t BUTTON_PIN = GPIO_NUM_6; // Only RTC IO are allowed - ESP32 Pin example
+#endif
+
+// ReSpeaker Lite control bus note for future wakeword/interrupt work:
+// I2C SDA=GPIO5 (D4), SCL=GPIO6 (D5), XMOS address 0x42.
 
 
 // ----------------- SSL Certificates -----------------
